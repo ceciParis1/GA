@@ -1,0 +1,6 @@
+streamlit
+geopandas
+transformers
+langchain
+openai
+annoy
