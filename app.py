@@ -1,16 +1,25 @@
 import streamlit as st
 import geopandas as gpd
-from langchain_openai import OpenAIEmbeddings
-from annoy import AnnoyIndex
-import os
+import requests
+from io import BytesIO
 
-# Exemple de chargement des fichiers .shp depuis des URLs (à ajuster avec les bons liens)
-commune_shp_url = "https://ton-lien-vers-le-fichier-communes.shp"
-departement_shp_url = "https://ton-lien-vers-le-fichier-departement.shp"
+# URL téléchargeables de Google Drive
+commune_shp_url = "https://drive.google.com/uc?export=download&id=1bZ-gh40oa0E1PYjn8Xs3a4C2GtmzV_NP"
+departement_shp_url = "https://drive.google.com/uc?export=download&id=1vL4zD23igPxUku0u7F41eiy6nSfEgMpp"
 
-# Charger les fichiers Shapefile des communes et des départements
-gdf_commune = gpd.read_file(commune_shp_url, encoding='utf-8')
-gdf_departement = gpd.read_file(departement_shp_url, encoding='utf-8')
+# Télécharger et charger les fichiers Shapefile
+
+# Téléchargement du fichier de communes
+commune_response = requests.get(commune_shp_url)
+commune_zip = BytesIO(commune_response.content)
+
+# Téléchargement du fichier de départements
+departement_response = requests.get(departement_shp_url)
+departement_zip = BytesIO(departement_response.content)
+
+# Lire les fichiers Shapefile depuis le contenu téléchargé
+gdf_commune = gpd.read_file(commune_zip)
+gdf_departement = gpd.read_file(departement_zip)
 
 # Calcul des taux de couverture FTTH pour les communes
 gdf_commune['Locaux'] = gdf_commune['Locaux'].astype(int)
@@ -22,11 +31,7 @@ gdf_departement['Locaux'] = gdf_departement['Locaux'].astype(int)
 gdf_departement['taux_exact_couv'] = (gdf_departement['ftth'] / gdf_departement['Locaux']) * 100
 gdf_departement['taux_exact_couv'] = gdf_departement['taux_exact_couv'].round(2)
 
-# Initialisation du modèle d'OpenAI pour les embeddings
-openai_api_key = os.getenv("OPENAI_API_KEY")  # Utiliser une variable d'environnement pour la clé OpenAI
-embedding_model = OpenAIEmbeddings(openai_api_key=openai_api_key)
-
-# Préparer les documents des communes pour l'embedding
+# Préparer les documents pour les communes
 def prepare_commune_documents(df):
     documents = []
     for _, row in df.iterrows():
@@ -35,6 +40,12 @@ def prepare_commune_documents(df):
     return documents
 
 commune_documents = prepare_commune_documents(gdf_commune)
+
+# Initialisation du modèle d'OpenAI pour les embeddings
+openai_api_key = os.getenv("OPENAI_API_KEY")  # Utiliser une variable d'environnement pour la clé OpenAI
+embedding_model = OpenAIEmbeddings(openai_api_key=openai_api_key)
+
+# Création des embeddings pour les communes
 commune_embeddings = embedding_model.embed_documents([doc["page_content"] for doc in commune_documents])
 
 # Création de l'index Annoy pour les communes
@@ -44,7 +55,7 @@ for i, embedding in enumerate(commune_embeddings):
     commune_index.add_item(i, embedding)
 commune_index.build(100)
 
-# Interface utilisateur
+# Interface Streamlit
 st.title("Assistant IA - Taux de couverture FTTH")
 
 # Entrée de la question utilisateur
