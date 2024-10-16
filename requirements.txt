@@ -1,6 +1,7 @@
 streamlit
 geopandas
-transformers
-langchain
+requests
 openai
+langchain==0.0.208
 annoy
+tiktoken
