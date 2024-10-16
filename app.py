@@ -1,21 +1,34 @@
+import os
+import subprocess
 import streamlit as st
 import geopandas as gpd
 import requests
 from io import BytesIO
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import Annoy
 import openai
-import os
 
-# Clé API OpenAI (à configurer dans les secrets Streamlit Cloud)
+# Fonction d'installation des packages manquants
+def install(package):
+    subprocess.check_call(["pip", "install", package])
+
+# Liste des bibliothèques à installer si elles manquent
+libraries = ["geopandas", "requests", "openai", "langchain==0.0.208", "annoy"]
+
+for lib in libraries:
+    try:
+        __import__(lib.split('==')[0])  # Vérifie si la bibliothèque est installée
+    except ImportError:
+        install(lib)
+
+# Clé API OpenAI (configurer dans Streamlit Cloud > Secrets)
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
 # URLs des fichiers Shapefile stockés sur Google Cloud Storage
 commune_shp_url = "https://storage.googleapis.com/ton-bucket/communes_2024T2_v3.shp"
 departement_shp_url = "https://storage.googleapis.com/ton-bucket/dpt_2024T2_v2.shp"
 
-# Fonction pour télécharger et lire le fichier Shapefile
+# Fonction pour télécharger et lire les fichiers Shapefile
 def download_shapefile(url):
     response = requests.get(url)
     return BytesIO(response.content)
@@ -38,7 +51,7 @@ gdf_departement['Locaux'] = gdf_departement['Locaux'].astype(int)
 gdf_departement['taux_exact_couv'] = (gdf_departement['ftth'] / gdf_departement['Locaux']) * 100
 gdf_departement['taux_exact_couv'] = gdf_departement['taux_exact_couv'].round(2)
 
-# Préparation des données pour le LLM
+# Préparation des données pour le modèle LLM (Langchain)
 def prepare_commune_documents(df):
     documents = []
     for _, row in df.iterrows():
