@@ -4,24 +4,25 @@ import streamlit as st
 import geopandas as gpd
 import requests
 from io import BytesIO
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import Annoy
-import openai
 
 # Fonction d'installation des packages manquants
 def install(package):
     subprocess.check_call(["pip", "install", package])
 
-# Liste des bibliothèques à installer si elles manquent
-libraries = ["geopandas", "requests", "openai", "langchain==0.0.208", "annoy"]
-
+# Installation automatique des dépendances si nécessaire
+libraries = ["geopandas", "requests", "openai", "langchain==0.0.208", "annoy", "tiktoken"]
 for lib in libraries:
     try:
-        __import__(lib.split('==')[0])  # Vérifie si la bibliothèque est installée
+        __import__(lib.split('==')[0])
     except ImportError:
         install(lib)
 
-# Clé API OpenAI (configurer dans Streamlit Cloud > Secrets)
+# Importations après vérification des dépendances
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.vectorstores import Annoy
+import openai
+
+# Clé API OpenAI (configurer dans les secrets de Streamlit Cloud)
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
 # URLs des fichiers Shapefile stockés sur Google Cloud Storage
