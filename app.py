@@ -4,43 +4,47 @@ import streamlit as st
 import geopandas as gpd
 import requests
 from io import BytesIO
+import zipfile
+import fiona  # Importation explicite de fiona
 
 # Fonction d'installation des packages manquants
 def install(package):
     subprocess.check_call(["pip", "install", package])
 
 # Installation automatique des dépendances si nécessaire
-libraries = ["geopandas", "requests", "openai", "langchain==0.0.208", "annoy", "tiktoken"]
+libraries = ["geopandas", "requests", "openai", "langchain==0.0.208", "annoy", "tiktoken", "fiona"]
 for lib in libraries:
     try:
         __import__(lib.split('==')[0])
     except ImportError:
         install(lib)
 
-# Importations après vérification des dépendances
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import Annoy
-import openai
+# Intégration directe de la clé API OpenAI (à éviter en production)
+openai_api_key = "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"
+openai.api_key = openai_api_key
 
-# Clé API OpenAI (configurer dans les secrets de Streamlit Cloud)
-openai_api_key = os.getenv("OPENAI_API_KEY")
+# URLs des fichiers Shapefile stockés sur Google Drive
+commune_zip_url = "https://drive.google.com/uc?export=download&id=1chzyg5TWgugKcr3Mn9LHl-S6cka_uO4J"
+departement_zip_url = "https://drive.google.com/uc?export=download&id=1m1sxx9nQe8A1JiYygtLoUXKiCOyJJMj5"
 
-# URLs des fichiers Shapefile stockés sur Google Cloud Storage
-commune_shp_url = "https://storage.googleapis.com/ton-bucket/communes_2024T2_v3.shp"
-departement_shp_url = "https://storage.googleapis.com/ton-bucket/dpt_2024T2_v2.shp"
-
-# Fonction pour télécharger et lire les fichiers Shapefile
-def download_shapefile(url):
+# Fonction pour télécharger et décompresser un fichier ZIP contenant des Shapefiles
+def download_and_extract_shapefile(url, extract_to="shapefiles"):
     response = requests.get(url)
-    return BytesIO(response.content)
+    zip_file = BytesIO(response.content)
+    
+    # Décompresser le fichier ZIP
+    with zipfile.ZipFile(zip_file, 'r') as z:
+        z.extractall(extract_to)
+    return extract_to
 
-# Télécharger les Shapefiles depuis Google Cloud Storage
-commune_file = download_shapefile(commune_shp_url)
-departement_file = download_shapefile(departement_shp_url)
+# Télécharger et décompresser les fichiers ZIP depuis Google Drive
+commune_dir = download_and_extract_shapefile(commune_zip_url)
+departement_dir = download_and_extract_shapefile(departement_zip_url)
 
-# Lire les fichiers Shapefile avec Geopandas
-gdf_commune = gpd.read_file(commune_file)
-gdf_departement = gpd.read_file(departement_file)
+# Forcer Geopandas à utiliser fiona pour lire les fichiers Shapefile
+with fiona.Env():
+    gdf_commune = gpd.read_file(f"{commune_dir}/communes_2024T2_v3.shp")
+    gdf_departement = gpd.read_file(f"{departement_dir}/dpt_2024T2_v2.shp")
 
 # Calcul des taux de couverture FTTH pour les communes
 gdf_commune['Locaux'] = gdf_commune['Locaux'].astype(int)
