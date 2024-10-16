@@ -5,7 +5,7 @@ import geopandas as gpd
 import requests
 from io import BytesIO
 import zipfile
-import fiona  # Importation explicite de fiona
+import openai  # Assure-toi d'importer openai ici
 
 # Fonction d'installation des packages manquants
 def install(package):
@@ -19,9 +19,13 @@ for lib in libraries:
     except ImportError:
         install(lib)
 
-# Intégration directe de la clé API OpenAI (à éviter en production)
+# Importations après vérification des dépendances
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.vectorstores import Annoy
+
+# Définition de la clé API OpenAI (en production, cela devrait venir des secrets)
 openai_api_key = "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"
-openai.api_key = openai_api_key
+openai.api_key = openai_api_key  # Cette ligne est correcte après avoir importé openai
 
 # URLs des fichiers Shapefile stockés sur Google Drive
 commune_zip_url = "https://drive.google.com/uc?export=download&id=1chzyg5TWgugKcr3Mn9LHl-S6cka_uO4J"
@@ -41,10 +45,9 @@ def download_and_extract_shapefile(url, extract_to="shapefiles"):
 commune_dir = download_and_extract_shapefile(commune_zip_url)
 departement_dir = download_and_extract_shapefile(departement_zip_url)
 
-# Forcer Geopandas à utiliser fiona pour lire les fichiers Shapefile
-with fiona.Env():
-    gdf_commune = gpd.read_file(f"{commune_dir}/communes_2024T2_v3.shp")
-    gdf_departement = gpd.read_file(f"{departement_dir}/dpt_2024T2_v2.shp")
+# Lire les fichiers Shapefile avec Geopandas (en supposant que le fichier .shp se trouve dans le répertoire extrait)
+gdf_commune = gpd.read_file(f"{commune_dir}/communes_2024T2_v3.shp")
+gdf_departement = gpd.read_file(f"{departement_dir}/dpt_2024T2_v2.shp")
 
 # Calcul des taux de couverture FTTH pour les communes
 gdf_commune['Locaux'] = gdf_commune['Locaux'].astype(int)
